@@ -1,13 +1,6 @@
 package fr.ornicare.manager;
 
-import java.util.List;
-
-import com.sun.j3d.utils.applet.MainFrame;
-
-import fr.ornicare.draw.Draw;
-import fr.ornicare.draw.DrawNav;
 import fr.ornicare.draw.DrawNavSecond;
-import fr.ornicare.entity.Entity;
 import fr.ornicare.global.Core;
 import fr.ornicare.global.GlobalVars;
 
@@ -43,8 +36,8 @@ public class Launch {
 //	}
 
 	private void draw() {
+		@SuppressWarnings("unused")
 		DrawNavSecond dN = new DrawNavSecond(core, this);
-		dN.startDrawing();
 	}
 
 }

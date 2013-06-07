@@ -3,11 +3,7 @@ package fr.ornicare.global;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-
-import javax.swing.text.MaskFormatter;
 
 import fr.ornicare.entity.Entity;
 import fr.ornicare.util.Location;
@@ -117,6 +113,20 @@ public class DMap {
 			remainingAttempts--;
 		}
 		return loc;
+	}
+
+	public List<Entity> getLocalEnvironment(final Entity ent) {
+		List<Entity> nearestEntities = new ArrayList<Entity>();
+		List<Entity> entList = core.getEntityList();
+		for(Entity entN : entList) {
+			if(!entN.equals(ent) && ((entN.getLocation().distanceTo(ent.getLocation())-entN.getInteractionRange().getDominantGene().getValue()-ent.getInteractionRange().getDominantGene().getValue()-ent.getSize()-entN.getSize())<0)) {
+				nearestEntities.add(entN);
+			}
+		}
+		
+		//entList.removeAll(entList);
+		
+	    return nearestEntities;
 	}
 
 

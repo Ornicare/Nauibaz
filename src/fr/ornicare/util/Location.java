@@ -42,6 +42,10 @@ public class Location {
 		double zDif = otherLoc.getZ() - z;
 		return Math.sqrt(xDif*xDif+yDif*yDif+zDif*zDif);
 	}
+	
+	public Location clone() {
+		return new Location(new Double(x), new Double(y), new Double(z));
+	}
 
 
 	public Location middle(Location location) {

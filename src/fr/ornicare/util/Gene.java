@@ -7,9 +7,9 @@ public class Gene {
 	private double value;
 	private double expressionValue;
 	
-	public Gene(double a, double b) {
-		expressionValue = b;
-		value = a;
+	public Gene(double value, double expressionValue) {
+		this.expressionValue = expressionValue;
+		this.value = value;
 	}
 
 	public double getExpressionValue() {
@@ -27,6 +27,10 @@ public class Gene {
 
 	public void setValue(double v) {
 		value = v;
+	}
+	
+	public Gene clone() {
+		return new Gene(new Double(value), new Double(expressionValue));
 	}
 
 	

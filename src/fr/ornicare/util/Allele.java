@@ -1,5 +1,7 @@
 package fr.ornicare.util;
 
+import fr.ornicare.global.GlobalVars;
+
 public class Allele {
 
 	private Gene a;
@@ -40,5 +42,13 @@ public class Allele {
 		this.b = b;
 	}
 	
+	public Allele clone() {
+		return new Allele(a.clone(), b.clone());
+	}
+	
+	public void mutate() {
+		if(Math.random()<GlobalVars.mutationChance) a.mutate();
+		if(Math.random()<GlobalVars.mutationChance) b.mutate();
+	}
 	
 }

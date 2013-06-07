@@ -1,22 +1,16 @@
 package fr.ornicare.draw;
 
-import java.applet.Applet;
 import java.awt.BorderLayout;
 import java.awt.Button;
-import java.awt.Color;
 import java.awt.Frame;
-import java.awt.Graphics2D;
-import java.awt.GraphicsConfiguration;
 import java.awt.Panel;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
-import java.awt.event.WindowEvent;
-import java.awt.event.WindowListener;
-import java.awt.image.BufferedImage;
 import java.util.List;
+
 import javax.media.j3d.AmbientLight;
 import javax.media.j3d.Appearance;
 import javax.media.j3d.BoundingLeaf;
@@ -32,35 +26,25 @@ import javax.media.j3d.Node;
 import javax.media.j3d.PhysicalBody;
 import javax.media.j3d.PhysicalEnvironment;
 import javax.media.j3d.PickInfo;
+import javax.media.j3d.PolygonAttributes;
 import javax.media.j3d.Shape3D;
-import javax.media.j3d.Texture;
-import javax.media.j3d.Texture2D;
-import javax.media.j3d.TextureAttributes;
 import javax.media.j3d.Transform3D;
 import javax.media.j3d.TransformGroup;
+import javax.media.j3d.TransparencyAttributes;
 import javax.media.j3d.View;
 import javax.media.j3d.ViewPlatform;
 import javax.media.j3d.VirtualUniverse;
-import javax.swing.JPanel;
 import javax.swing.Timer;
 import javax.vecmath.Color3f;
-import javax.vecmath.Color4f;
 import javax.vecmath.Point3d;
 import javax.vecmath.Point3f;
-import javax.vecmath.Vector3d;
 import javax.vecmath.Vector3f;
 
-import com.sun.j3d.utils.applet.MainFrame;
 import com.sun.j3d.utils.behaviors.keyboard.KeyNavigatorBehavior;
 import com.sun.j3d.utils.behaviors.mouse.MouseRotate;
-import com.sun.j3d.utils.geometry.Box;
-import com.sun.j3d.utils.geometry.Primitive;
 import com.sun.j3d.utils.geometry.Sphere;
-import com.sun.j3d.utils.image.TextureLoader;
 import com.sun.j3d.utils.pickfast.PickCanvas;
-import com.sun.j3d.utils.picking.PickResult;
 import com.sun.j3d.utils.universe.SimpleUniverse;
-import com.sun.j3d.utils.universe.ViewingPlatform;
 
 import fr.ornicare.entity.Entity;
 import fr.ornicare.global.Core;
@@ -68,27 +52,36 @@ import fr.ornicare.global.GlobalVars;
 import fr.ornicare.manager.Launch;
 import fr.ornicare.util.Location;
 
-public class DrawNavSecond extends Frame implements ActionListener, MouseListener,
-		MouseMotionListener {
+public class DrawNavSecond extends Frame implements ActionListener,
+		MouseListener, MouseMotionListener {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+	private static Color3f black;
+	private static Color3f blue;
+	
 	private BranchGroup group;
 	private TransformGroup boxTransformGroup;
 	private Core core;
 	private float factor = 1;
 	private Timer timer;
+	@SuppressWarnings("unused")
 	private Launch launcher;
-	
+
 	protected Canvas3D myCanvas3D;
 	protected Locale myLocale;
-	
+
 	protected Button exitButton;
 	protected Button nExitButton;
-	
-//	private JPanel canvasContainer;
-	
+	protected Button killAll;
+	protected Button showButton;
+
+	// private JPanel canvasContainer;
+
 	private Transform3D transform;
 	private TransformGroup tg;
-	private float xloc;
 	private VirtualUniverse myUniverse;
 	private View myView;
 	private PhysicalBody myBody;
@@ -101,137 +94,123 @@ public class DrawNavSecond extends Frame implements ActionListener, MouseListene
 	private BoundingLeaf boundLeaf;
 	private BranchGroup viewBranch;
 	private PickCanvas pickCanvas;
+	private MouseRotate behavior;
+	
+	static {
+		black = new Color3f(0.0f, 0.0f, 0.0f);
+		blue = new Color3f(0.0f, 0.0f, 1.0f);
+	}
 
-
-	public DrawNavSecond(Core core, Launch launcher)
-	{
+	public DrawNavSecond(Core core, Launch launcher) {
 		this.launcher = launcher;
 		this.core = core;
 		
+		defineBehavior();
+		initializeViewAndUniverse();
+		refresh();
+		createWindow();
+		
+		timer = new Timer(100, this);
+		if (GlobalVars.timer) timer.start();
+
+	}
+	
+	private void initializeViewAndUniverse() {
+		transform = new Transform3D();
+
 
 		viewXfm = new Transform3D();
 		viewXfm.set(new Vector3f(0.0f, 0.0f, 20.0f));
 
-
 		myViewPlatform = new ViewPlatform();
-		
-		movingBounds = new BoundingSphere(new Point3d(0.0, 0.0,
-				0.0), 100.0);
+
+		movingBounds = new BoundingSphere(new Point3d(0.0, 0.0, 0.0), 100.0);
 		myEnvironment = new PhysicalEnvironment();
-		
-		
-		
+
 		viewXfmGroup = new TransformGroup(viewXfm);
 		viewXfmGroup.setCapability(TransformGroup.ALLOW_TRANSFORM_READ);
 		viewXfmGroup.setCapability(TransformGroup.ALLOW_TRANSFORM_WRITE);
-		
-
 
 		boundLeaf = new BoundingLeaf(movingBounds);
 		viewXfmGroup.addChild(myViewPlatform);
 		viewXfmGroup.addChild(boundLeaf);
-		
 
 		keyNav = new KeyNavigatorBehavior(viewXfmGroup);
 		keyNav.setSchedulingBounds(movingBounds);
-		
-
 
 		myView = new View();
-		//FOV...
 		myView.setFieldOfView(1);
 		myView.setFrontClipPolicy(View.VISIBILITY_DRAW_ALL);
-		myView.setSceneAntialiasingEnable(true);
-		
+		myView.setBackClipDistance(1000);
+		myView.setSceneAntialiasingEnable(false);
+
 		myBody = new PhysicalBody();
-		
-		myCanvas3D = new Canvas3D(SimpleUniverse.getPreferredConfiguration());
-		
-		group = new BranchGroup();
-		exitButton = new Button("Exit");
-		nExitButton = new Button("Next gen");
-		
-//		canvasContainer = new JPanel();
-//		canvasContainer.setLayout(new BorderLayout());
-//		canvasContainer.add(myCanvas3D, BorderLayout.CENTER);
-		
 		myUniverse = new VirtualUniverse();
 		myLocale = new Locale(myUniverse);
-		getScene();
-		myLocale.addBranchGraph(buildViewBranch(myCanvas3D));
-		myLocale.addBranchGraph(group);
-
-		setTitle("SimpleKeyNav");
-		setSize(400, 400);
-		setLayout(new BorderLayout());
-		Panel bottom = new Panel();
-		bottom.add(exitButton);
-		bottom.add(nExitButton);
-//		add(BorderLayout.CENTER, canvasContainer);
-		add(BorderLayout.CENTER, myCanvas3D);
-		
-		add(BorderLayout.SOUTH, bottom);
-		exitButton.addActionListener(this);
-		nExitButton.addActionListener(this);
-		
-		
-		
-	    pickCanvas = new PickCanvas(myCanvas3D, group);
-	    pickCanvas.setMode(PickCanvas.TYPE_SHAPE3D);
-	    myCanvas3D.addMouseListener(this);
-		
-		
-		
-		setVisible(true);
-		timer = new Timer(100, this);
-		
-		if(GlobalVars.timer) {
-			timer.start();
-		}
-		
-		
-		
-		
-		
 	}
 
-	public void startDrawing() {
-		/*myCanvas3D = new Canvas3D(SimpleUniverse.getPreferredConfiguration());
-		group = new BranchGroup();
-		exitButton = new Button("Exit");
-		nExitButton = new Button("Next gen");
+	private void defineBehavior() {
+		//Define boundaries
+		BoundingSphere bounds = new BoundingSphere(new Point3d(0.0, 0.0, 0.0),
+				10000.0);
 		
-		myUniverse = new VirtualUniverse();
-		Locale myLocale = new Locale(myUniverse);
-		getScene();
-		myLocale.addBranchGraph(buildViewBranch(myCanvas3D));
-		myLocale.addBranchGraph(group);
+		//Create a new behavior
+		behavior = new MouseRotate();
+		behavior.setSchedulingBounds(bounds);
+	}
+
+	private void createWindow() {
 
 		setTitle("SimpleKeyNav");
 		setSize(400, 400);
 		setLayout(new BorderLayout());
 		Panel bottom = new Panel();
+		
+		killAll = new Button("Kill all");
+		exitButton = new Button("Exit");
+		nExitButton = new Button("Switch timer");
+		showButton = new Button("Show");
+		bottom.add(killAll);
 		bottom.add(exitButton);
 		bottom.add(nExitButton);
-		add(BorderLayout.CENTER, myCanvas3D);
-		add(BorderLayout.SOUTH, bottom);
+		bottom.add(showButton);
+		killAll.addActionListener(this);
 		exitButton.addActionListener(this);
 		nExitButton.addActionListener(this);
-		setVisible(true);
-//		timer = new Timer(100, this);
-//		timer.start();*/
+		showButton.addActionListener(this);
+		
+		add(BorderLayout.CENTER, myCanvas3D);
+		add(BorderLayout.SOUTH, bottom);
 
+		setVisible(true);
+	}
+
+	private void refresh() {
+		myCanvas3D = new Canvas3D(
+				SimpleUniverse.getPreferredConfiguration());
+
+		group = new BranchGroup();
+		
+		myUniverse.removeLocale(myLocale);
+		myLocale = new Locale(myUniverse);
+
+		getScene();
+		myLocale.addBranchGraph(buildViewBranch(myCanvas3D));
+		myLocale.addBranchGraph(group);
+
+		pickCanvas = new PickCanvas(myCanvas3D, group);
+		pickCanvas.setMode(PickCanvas.TYPE_SHAPE3D);
+		myCanvas3D.addMouseListener(this);
 	}
 
 	protected BranchGroup buildViewBranch(Canvas3D c) {
-		if(viewBranch!=null) viewBranch.removeAllChildren();
+		if (viewBranch != null)
+			viewBranch.removeAllChildren();
 
 		viewBranch = new BranchGroup();
-		
-
 
 		viewBranch.addChild(viewXfmGroup);
-		
+
 		myView.addCanvas3D(c);
 		myView.attachViewPlatform(myViewPlatform);
 		myView.setPhysicalBody(myBody);
@@ -242,89 +221,118 @@ public class DrawNavSecond extends Frame implements ActionListener, MouseListene
 		return viewBranch;
 	}
 
-
 	public void getScene() {
+		//Add some light to the scene
 		addLights(group);
-		MouseRotate behavior = new MouseRotate();
-		BoundingSphere bounds = new BoundingSphere(new Point3d(0.0, 0.0, 0.0),
-				100.0);
+
+		if(boxTransformGroup!=null) boxTransformGroup.removeAllChildren();
+
+		
+		//Allow transformation on the fly
 		boxTransformGroup = new TransformGroup();
 		boxTransformGroup.setCapability(TransformGroup.ALLOW_TRANSFORM_READ);
 		boxTransformGroup.setCapability(TransformGroup.ALLOW_TRANSFORM_WRITE);
-		behavior.setTransformGroup(boxTransformGroup);
+
+		//Apply the behavior
 		boxTransformGroup.addChild(behavior);
+		behavior.setTransformGroup(boxTransformGroup);
 
-		behavior.setSchedulingBounds(bounds);
-
-		transform = new Transform3D();
-
+		
+		//Draw the objects
 		for (Entity ent : core.getEntityList()) {
-			Sphere sphere = new Sphere((float) (ent.getSize() / factor * GlobalVars.particleFactor));
-
-			sphere.setName("qsdqdsds");
-			
-			// some color
-			Appearance ap = new Appearance();
+			Location loc = ent.getLocation();
 			Color3f col = new Color3f((float) ent.getSize(),
 					(float) (1 - ent.getSize()), 0f);
-			Color3f black = new Color3f(0.0f, 0.0f, 0.0f);
-			ap.setMaterial(new Material(col, black, col, black, 1.0f));
-			sphere.setAppearance(ap);
-
-			tg = new TransformGroup();
-			tg.setCapability(TransformGroup.ALLOW_TRANSFORM_WRITE);
-
-
-			Location loc = ent.getLocation();
 			Vector3f vector = new Vector3f((float) loc.getX() / factor,
 					(float) loc.getY() / factor, (float) loc.getZ() / factor);
-
 			transform.setTranslation(vector);
-			tg.setTransform(transform);
-
-			tg.addChild(sphere);
-		
 
 			
-			boxTransformGroup.addChild(tg);
-
-			// /////////////////////////////////////////////////////////Some
-			// tests
-			 Appearance app = new Appearance();
-			 ColoringAttributes ca = new ColoringAttributes(col,ColoringAttributes.SHADE_FLAT);
-			 app.setColoringAttributes(ca);
-
-			// Plain line
-			Point3f[] plaPts = new Point3f[2];
-			plaPts[0] = new Point3f((float) loc.getX() / factor,
-					(float) loc.getY() / factor, (float) loc.getZ() / factor);
-
-			List<Entity> nearestEntities = core.getMap().getNearestEntities(
-					ent, 2 * core.getMap().getMaxRadius());
-
-			Entity entN = nearestEntities.get(0);
-			Location locN = entN.getLocation();
-			plaPts[1] = new Point3f((float) locN.getX() / factor,
-					(float) locN.getY() / factor, (float) locN.getZ() / factor);
-			LineArray pla = new LineArray(20, LineArray.COORDINATES);
-			pla.setCoordinates(0, plaPts);
-			Shape3D plShape = new Shape3D(pla, app);
-			
-			boxTransformGroup.addChild(plShape);
+			drawParticles(col, ent);
+			if(GlobalVars.showLocal) drawLocal(col, ent);
+			drawLinks(loc, ent);
 		}
+		
 
 		group.addChild(boxTransformGroup);
 
 	}
 
-//	public void positionViewer() {
-//		ViewingPlatform vp = ((SimpleUniverse) myUniverse).getViewingPlatform();
-//		TransformGroup tg1 = vp.getViewPlatformTransform();
-//		Transform3D t3d = new Transform3D();
-//		tg1.getTransform(t3d);
-//		vp.setNominalViewingTransform();
-//
-//	}
+	private void drawLinks(Location loc, Entity ent) {
+		Appearance app = new Appearance();
+		ColoringAttributes ca = new ColoringAttributes(blue,
+				ColoringAttributes.SHADE_FLAT);
+		app.setColoringAttributes(ca);
+
+		for (Entity entN : ent.getLocalEnvironment()) {
+			Point3f[] plaPts = new Point3f[2];
+			plaPts[0] = new Point3f((float) loc.getX() / factor,
+					(float) loc.getY() / factor, (float) loc.getZ()
+							/ factor);
+
+			Location locN = entN.getLocation().clone();
+			plaPts[1] = new Point3f((float) locN.getX() / factor,
+					(float) locN.getY() / factor, (float) locN.getZ()
+							/ factor);
+			LineArray pla = new LineArray(20, LineArray.COORDINATES);
+			pla.setCoordinates(0, plaPts);
+			Shape3D plShape = new Shape3D(pla, app);
+
+			boxTransformGroup.addChild(plShape);
+		}
+	}
+
+	private void drawParticles(Color3f col, Entity ent) {
+		Appearance ap = new Appearance();
+		ap.setMaterial(new Material(col, black, col, black, 1.0f));
+		
+		Sphere sphere = new Sphere(
+				(float) (ent.getSize() / factor * GlobalVars.particleFactor));
+		sphere.setName("qsdqdsds");
+		sphere.setAppearance(ap);
+
+		tg = new TransformGroup();
+		tg.setCapability(TransformGroup.ALLOW_TRANSFORM_WRITE);
+		tg.setTransform(transform);
+
+		tg.addChild(sphere);
+
+		boxTransformGroup.addChild(tg);
+	}
+
+	private void drawLocal(Color3f col, Entity ent) {
+		Sphere sphereInfluence = new Sphere((float) ((new Double(ent.getSize()+ent.getInteractionRange().getDominantGene().getValue())) / factor * GlobalVars.localFactor));
+		
+		Appearance ap2 = new Appearance();
+		
+		switch (GlobalVars.localMode) {
+		case 0:
+			ap2.setPolygonAttributes(new PolygonAttributes(PolygonAttributes.POLYGON_LINE,PolygonAttributes.CULL_BACK,0.0f));
+			break;
+		case 1:
+			ap2.setTransparencyAttributes(new TransparencyAttributes(TransparencyAttributes.NICEST,GlobalVars.localTransparency));
+			break;
+		case 2:
+			ap2.setPolygonAttributes(new PolygonAttributes(PolygonAttributes.POLYGON_LINE,PolygonAttributes.CULL_BACK,0.0f));
+			ap2.setTransparencyAttributes(new TransparencyAttributes(TransparencyAttributes.NICEST,GlobalVars.localTransparency));
+			break;
+		default:
+			break;
+		}
+		
+		
+		ap2.setMaterial(new Material(col, black, col, black, 1.0f));
+		sphereInfluence.setAppearance(ap2);
+
+		tg = new TransformGroup();
+		tg.setCapability(TransformGroup.ALLOW_TRANSFORM_WRITE);
+	
+		tg.setTransform(transform);
+
+		tg.addChild(sphereInfluence);
+
+		boxTransformGroup.addChild(tg);
+	}
 
 	public static void addLights(BranchGroup group) {
 		Color3f light1Color = new Color3f(0.7f, 0.8f, 0.8f);
@@ -343,29 +351,29 @@ public class DrawNavSecond extends Frame implements ActionListener, MouseListene
 	@Override
 	public void mouseClicked(MouseEvent e) {
 		pickCanvas.setShapeLocation(e);
-	    PickInfo result = pickCanvas.pickClosest();
+		PickInfo result = pickCanvas.pickClosest();
 
-	    if (result == null) {
-	       System.out.println("Nothing picked");
-	    } else {
-	       Shape3D s = (Shape3D)result.getNode();
-	       if (s != null) {
-	             System.out.println(s.getClass().getName());
-	             System.out.println(s.getName());
-	             
-	             Node node = s.getParent();
-	             int attempts = 10;
-	             String st = null;
-	             while(node != null && attempts>0 && st == null) {
-	            	 st = node.getName();
-	            	 node = node.getParent();
-	            	 attempts--;
-	             }
-	             System.out.println(st+" - "+attempts);
-	       } else{
-	          System.out.println("null");
-	       }
-	    }
+		if (result == null) {
+			System.out.println("Nothing picked");
+		} else {
+			Shape3D s = (Shape3D) result.getNode();
+			if (s != null) {
+				System.out.println(s.getClass().getName());
+				System.out.println(s.getName());
+
+				Node node = s.getParent();
+				int attempts = 10;
+				String st = null;
+				while (node != null && attempts > 0 && st == null) {
+					st = node.getName();
+					node = node.getParent();
+					attempts--;
+				}
+				System.out.println(st + " - " + attempts);
+			} else {
+				System.out.println("null");
+			}
+		}
 	}
 
 	@Override
@@ -394,100 +402,40 @@ public class DrawNavSecond extends Frame implements ActionListener, MouseListene
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
-		if(e.getSource().equals(nExitButton)) {
-			if(timer.isRunning()) {
-				timer.stop();
+		
+		if (e.getSource().equals(showButton)) {
+			GlobalVars.show = !GlobalVars.show;
+			if(GlobalVars.show) refresh();
+		}
+		if (e.getSource().equals(killAll)) {
+			List<Entity> temp = core.getEntityList();
+			for(Entity ent : temp) {
+				ent.setDead();
 			}
-			else {
+		}
+		if (e.getSource().equals(exitButton) || core.getPopulation() == 0) {
+			dispose();
+			core.closeOut();
+			System.exit(0);
+		}
+		if (e.getSource().equals(nExitButton)) {
+			if (timer.isRunning()) {
+				timer.stop();
+			} else {
 				timer.start();
 			}
 		}
-		if(e.getSource().equals(timer)) {
+		if (e.getSource().equals(timer)) {
 			timer.stop();
-			//dispose();
+			
 			core.nextIter();
-//			for(int i = 0;i<100;i++) core.nextIter();
-			
 
-			
-			//---------------
-
-//			myView = new View();
-
-			//myBody = new PhysicalBody();
-			
-			//---------------
-			
-			
-//			myUniverse = new VirtualUniverse();
-//			myCanvas3D = new Canvas3D(SimpleUniverse.getPreferredConfiguration());
-//			group = new BranchGroup();
-//			Locale myLocale = new Locale(myUniverse);
-//			getScene();
-//			myLocale.addBranchGraph(buildViewBranch(myCanvas3D));
-//			myLocale.addBranchGraph(group);
-			
-			myCanvas3D = new Canvas3D(SimpleUniverse.getPreferredConfiguration());
-			group = new BranchGroup();
-			//exitButton = new Button("Exit");
-			//nExitButton = new Button("Next gen");
-			
-			//myUniverse = new VirtualUniverse();
-			//myUniverse.
-			myUniverse.removeLocale(myLocale);
-			myLocale = new Locale(myUniverse);
-			
-			getScene();
-			myLocale.addBranchGraph(buildViewBranch(myCanvas3D));
-			myLocale.addBranchGraph(group);
-			
-
-			
-		    pickCanvas = new PickCanvas(myCanvas3D, group);
-		    pickCanvas.setMode(PickCanvas.TYPE_SHAPE3D);
-		    myCanvas3D.addMouseListener(this);
-
-//			setTitle("SimpleKeyNav");
-//			setSize(400, 400);
-//			setLayout(new BorderLayout());
-			//this.removeAll();
-
-			//Panel bottom = new Panel();
-		
-			//bottom.add(exitButton);
-			//bottom.add(nExitButton);
-			
-			//add(BorderLayout.CENTER, myCanvas3D);
-			//canvasContainer.removeAll();
-			//canvasContainer.setLayout(new BorderLayout());
-			//canvasContainer.add(myCanvas3D, BorderLayout.CENTER);
-
-			
-			//add(BorderLayout.SOUTH, bottom);
-			//exitButton.addActionListener(this);
-			//nExitButton.addActionListener(this);
-			
-
-//			viewXfm.set(new Vector3f(0.0f, 0.0f, 20.0f));
-			
-			
-			
-			
-			setVisible(true);
+			if(GlobalVars.show) refresh();
 			
 			timer.start();
 		}
-		if(e.getSource().equals(exitButton)) {
-			dispose();
-			System.exit(0);
-		}
-		
-		
-//		xloc++;
-//		System.out.println("ezdq");
-//		transform.setScale(new Vector3d(1.0, .8, 1.0));
-//		transform.setTranslation(new Vector3f(xloc, 10f, 0.0f));
-//		tg.setTransform(transform);
 	}
-	
+
+
+
 }
